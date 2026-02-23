@@ -20,7 +20,6 @@
             box-sizing: border-box; font-family: 'Inter', sans-serif;
         }
 
-        /* ───── ОНЛАЙН-СЧЁТЧИК ───── */
         .online-badge {
             display: flex; align-items: center; gap: 10px;
             background: #f0fdf4; border: 1px solid #bbf7d0;
@@ -60,11 +59,6 @@
     </style>
 </head>
 <body>
-
-    <!-- ════════════════════════════════════════
-         ФУНКЦИЯ 1: СЧЁТЧИК ОНЛАЙН-ПОЛЬЗОВАТЕЛЕЙ
-         Использует Firebase Realtime Database (Presence API)
-    ═════════════════════════════════════════════ -->
     <div class="container">
         <h2>👥 Онлайн прямо сейчас</h2>
         <div class="online-badge">
@@ -75,11 +69,6 @@
             Открой эту страницу в другой вкладке — счётчик обновится автоматически
         </p>
     </div>
-
-    <!-- ════════════════════════════════════════
-         ФУНКЦИЯ 2: ПОИСК / ФИЛЬТРАЦИЯ ИЗ FIRESTORE
-         Живой поиск по полю name среди записей из БД
-    ═════════════════════════════════════════════ -->
     <div class="container">
         <h2>🔍 Поиск по базе данных</h2>
         <input type="text" id="searchInput" placeholder="Введите имя профиля...">
@@ -98,31 +87,22 @@
         import { getFirestore, collection, query, orderBy, onSnapshot, updateDoc, doc, increment }
                                    from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
-        // ── Конфигурация (та же что в index.html) ──
         const firebaseConfig = {
-            apiKey: "AIzaSyA8Rg1vOalzfafVpC2E9xqRi5TnzxHhLvU",
-            authDomain: "test-852ff.firebaseapp.com",
-            projectId: "test-852ff",
-            storageBucket: "test-852ff.firebasestorage.app",
-            messagingSenderId: "457915617515",
-            appId: "1:457915617515:web:49d4eca0afc81d6b1daeae",
-            databaseURL: "https://test-852ff-default-rtdb.firebaseio.com"
+          apiKey: "AIzaSyA8Rg1vOalzfafVpC2E9xqRi5TnzxHhLvU",
+          authDomain: "test-852ff.firebaseapp.com",
+          projectId: "test-852ff",
+          storageBucket: "test-852ff.firebasestorage.app",
+          messagingSenderId: "457915617515",
+          appId: "1:457915617515:web:49d4eca0afc81d6b1daeae",
+          measurementId: "G-11B2ZRR1N7"
+        };
         };
 
         const app = initializeApp(firebaseConfig);
         const db  = getFirestore(app);
         const rtdb = getDatabase(app);
 
-        // ════════════════════════════════════════════════════════
-        // ФУНКЦИЯ 1: СЧЁТЧИК ОНЛАЙН-ПОЛЬЗОВАТЕЛЕЙ
-        //
-        // Принцип работы:
-        // 1. При открытии страницы создаём уникальную запись в
-        //    Realtime Database по пути /online/<уникальный_id>
-        // 2. onDisconnect() — Firebase автоматически удаляет эту
-        //    запись когда браузер закрывается / теряет соединение
-        // 3. onValue() слушает изменения и считает кол-во записей
-        // ════════════════════════════════════════════════════════
+       
         const sessionId = Math.random().toString(36).slice(2); // уникальный ID вкладки
         const myRef = ref(rtdb, `online/${sessionId}`);
 
@@ -149,30 +129,15 @@
             return "пользователей";
         }
 
-        // ════════════════════════════════════════════════════════
-        // ФУНКЦИЯ 2: ПОИСК / ФИЛЬТРАЦИЯ ПО FIRESTORE
-        //
-        // Принцип работы:
-        // 1. onSnapshot() загружает ВСЕ записи из коллекции
-        //    "requests" и держит их в памяти (массив allDocs)
-        // 2. При вводе в строку поиска — фильтруем массив
-        //    на стороне клиента (toLowerCase + includes)
-        // 3. Совпадающий текст подсвечивается через <mark>
-        // Почему не запрос к Firebase?
-        // Firestore не поддерживает поиск по подстроке (LIKE),
-        // поэтому паттерн "загрузить всё + фильтровать локально"
-        // является стандартным решением для небольших коллекций.
-        // ════════════════════════════════════════════════════════
+    
         let allDocs = [];
 
-        // Один раз подписываемся на коллекцию
         const q = query(collection(db, "requests"), orderBy("timestamp", "desc"));
         onSnapshot(q, (snapshot) => {
             allDocs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
             renderSearch(document.getElementById("searchInput").value);
         });
 
-        // Обработчик поля поиска
         document.getElementById("searchInput").addEventListener("input", (e) => {
             renderSearch(e.target.value);
         });
@@ -191,7 +156,6 @@
             }
 
             container.innerHTML = filtered.map(data => {
-                // Подсветка совпадения в имени
                 const highlighted = lowerTerm
                     ? data.name.replace(new RegExp(`(${lowerTerm})`, "gi"), "<mark>$1</mark>")
                     : data.name;
@@ -208,7 +172,6 @@
             }).join("");
         }
 
-        // Лайки (та же логика что в index.html)
         window.processLike = async (id) => {
             const docRef = doc(db, "requests", id);
             try { await updateDoc(docRef, { likes: increment(1) }); }
