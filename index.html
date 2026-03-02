@@ -148,7 +148,7 @@
                         <b>${data.name}</b>
                         <span class="time">${data.timestamp?.toDate().toLocaleTimeString() || '...'}</span>
                     </div>
-                    <p>${data.text || data.email}</p>
+                    <p>${(data.text || data.email).replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>
                     ${data.imageURL ? `<img src="${data.imageURL}" style="width:100%; border-radius:8px; margin-top:8px;">` : ''}
                     <button class="like-btn" onclick="processLike('${doc.id}')">👍 ${data.likes || 0}</button>
                 </div>
