@@ -41,6 +41,7 @@
         <input type="text" id="name" placeholder="Имя профиля" readonly>
         <input type="email" id="email" placeholder="Ваш Email" readonly>
         <input type="text" id="content" placeholder="Что у вас нового?">
+        <input type="file" id="imageInput" accept="image/*">
         <button id="mainBtn">Опубликовать в облако</button>
     </div>
 
@@ -98,23 +99,40 @@
     };
 
     document.getElementById('mainBtn').onclick = async () => {
-        const content = document.getElementById('content').value;
-        if (!content) return alert("Введите текст сообщения!");
+    const content = document.getElementById('content').value;
+    const imageFile = document.getElementById('imageInput').files[0];
+    if (imageFile && imageFile.size > 500000) {
+        return alert("Картинка слишком большая! Максимум 500KB.");
+    }
+    if (!content) return alert("Введите текст сообщения!");
 
-        try {
-            await addDoc(collection(db, "requests"), {
-                name: auth.currentUser.displayName,
-                email: auth.currentUser.email,
-                photo: auth.currentUser.photoURL,
-                text: content,
-                likes: 0,
-                timestamp: serverTimestamp()
-            });
-            document.getElementById('content').value = "";
-        } catch (e) {
-            alert("Ошибка безопасности! Проверьте правила (Rules) в Firebase.");
-        }
-    };
+    let imageURL = null;
+
+    if (imageFile) {
+        const reader = new FileReader();
+        imageURL = await new Promise((resolve) => {
+            reader.onload = (e) => resolve(e.target.result);
+            reader.readAsDataURL(imageFile);
+        });
+    }
+
+    try {
+        await addDoc(collection(db, "requests"), {
+            name: auth.currentUser.displayName,
+            email: auth.currentUser.email,
+            photo: auth.currentUser.photoURL,
+            text: content,
+            imageURL: imageURL,
+            likes: 0,
+            timestamp: serverTimestamp()
+        });
+        document.getElementById('content').value = "";
+        document.getElementById('imageInput').value = "";
+    } catch (e) {
+        alert("Ошибка безопасности! Проверьте правила (Rules) в Firebase.");
+    }
+};
+    
 
     // --- REAL-TIME ОБНОВЛЕНИЕ ЛЕНТЫ ---
     const q = query(collection(db, "requests"), orderBy("timestamp", "desc"));
@@ -131,6 +149,7 @@
                         <span class="time">${data.timestamp?.toDate().toLocaleTimeString() || '...'}</span>
                     </div>
                     <p>${data.text || data.email}</p>
+                    ${data.imageURL ? `<img src="${data.imageURL}" style="width:100%; border-radius:8px; margin-top:8px;">` : ''}
                     <button class="like-btn" onclick="processLike('${doc.id}')">👍 ${data.likes || 0}</button>
                 </div>
             `;
