@@ -11,14 +11,15 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/fireba
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore, collection, doc, setDoc, getDocs, addDoc, query, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-// 🔧 ЗАМЕНИ НА СВОИ ДАННЫЕ
 const firebaseConfig = {
-  apiKey:            "YOUR_API_KEY",
-  authDomain:        "YOUR_PROJECT.firebaseapp.com",
-  projectId:         "YOUR_PROJECT_ID",
-  storageBucket:     "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId:             "YOUR_APP_ID"
+  apiKey: "AIzaSyA8Rg1vOalzfafVpC2E9xqRi5TnzxHhLvU",
+  authDomain: "test-852ff.firebaseapp.com",
+  databaseURL: "https://test-852ff-default-rtdb.firebaseio.com",
+  projectId: "test-852ff",
+  storageBucket: "test-852ff.firebasestorage.app",
+  messagingSenderId: "457915617515",
+  appId: "1:457915617515:web:49d4eca0afc81d6b1daeae",
+  measurementId: "G-11B2ZRR1N7"
 };
 
 const app  = initializeApp(firebaseConfig);
