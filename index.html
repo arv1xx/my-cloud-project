@@ -50,14 +50,9 @@ window.doLogin = async () => {
 };
 
 window.doRegister = async () => {
-  const name = $("a-name").value.trim(), e = $("a-email").value.trim(), p = $("a-pass").value;
-  if (!name) return $("a-err").textContent = "Введите имя";
-  try {
-    const c = await createUserWithEmailAndPassword(auth, e, p);
-    await updateProfile(c.user, { displayName: name });
-    await setDoc(doc(db, "users", c.user.uid), { uid: c.user.uid, displayName: name, email: e, createdAt: serverTimestamp() });
-  } catch(err) { $("a-err").textContent = err.message; }
-};
+  const name = $("a-name").value.trim(), 
+        e = $("a-email2").value.trim(), 
+        p = $("a-pass2").value;
 
 window.doLogout = async () => { if (unsub) unsub(); await signOut(auth); };
 
@@ -347,10 +342,10 @@ input::placeholder { color: #bbb; }
       <button class="btn" onclick="doLogin()">Войти</button>
     </div>
     <div id="f-up" class="auth-fields" style="display:none">
-      <input id="a-name"  type="text"     placeholder="Имя"/>
-      <input id="a-email" type="email"    placeholder="Email"/>
-      <input id="a-pass"  type="password" placeholder="Пароль"/>
-      <button class="btn" onclick="doRegister()">Создать аккаунт</button>
+  <input id="a-name"   type="text"     placeholder="Имя"/>
+  <input id="a-email2" type="email"    placeholder="Email"/>
+  <input id="a-pass2"  type="password" placeholder="Пароль"/>
+  <button class="btn" onclick="doRegister()">Создать аккаунт</button>
     </div>
     <div id="a-err"></div>
   </div>
