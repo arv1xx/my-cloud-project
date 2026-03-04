@@ -53,6 +53,13 @@ window.doRegister = async () => {
   const name = $("a-name").value.trim(), 
         e = $("a-email2").value.trim(), 
         p = $("a-pass2").value;
+  if (!name) return $("a-err").textContent = "Введите имя";
+  try {
+    const c = await createUserWithEmailAndPassword(auth, e, p);
+    await updateProfile(c.user, { displayName: name });
+    await setDoc(doc(db, "users", c.user.uid), { uid: c.user.uid, displayName: name, email: e, createdAt: serverTimestamp() });
+  } catch(err) { $("a-err").textContent = err.message; }
+};
 
 window.doLogout = async () => { if (unsub) unsub(); await signOut(auth); };
 
@@ -345,6 +352,7 @@ input::placeholder { color: #bbb; }
   <input id="a-name"   type="text"     placeholder="Имя"/>
   <input id="a-email2" type="email"    placeholder="Email"/>
   <input id="a-pass2"  type="password" placeholder="Пароль"/>
+  <button class="btn" onclick="doRegister()">Создать аккаунт</button>
     </div>
     <div id="a-err"></div>
   </div>
