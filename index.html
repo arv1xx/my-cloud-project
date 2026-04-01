@@ -1,388 +1,90 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Messenger</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet"/>
-
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, collection, doc, setDoc, getDocs, addDoc, query, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyA8Rg1vOalzfafVpC2E9xqRi5TnzxHhLvU",
-  authDomain: "test-852ff.firebaseapp.com",
-  databaseURL: "https://test-852ff-default-rtdb.firebaseio.com",
-  projectId: "test-852ff",
-  storageBucket: "test-852ff.firebasestorage.app",
-  messagingSenderId: "457915617515",
-  appId: "1:457915617515:web:49d4eca0afc81d6b1daeae",
-  measurementId: "G-11B2ZRR1N7"
-};
-
-const app  = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db   = getFirestore(app);
-
-const $ = id => document.getElementById(id);
-
-let me = null, users = [], selectedUid = null, unsub = null;
-
-onAuthStateChanged(auth, async user => {
-  if (user) {
-    me = user;
-    $("me-name").textContent = user.displayName || user.email;
-    await loadUsers();
-    $("auth").style.display = "none";
-    $("app").style.display  = "grid";
-  } else {
-    $("auth").style.display = "flex";
-    $("app").style.display  = "none";
-  }
-});
-
-window.doLogin = async () => {
-  const e = $("a-email").value.trim(), p = $("a-pass").value;
-  try { await signInWithEmailAndPassword(auth, e, p); }
-  catch(err) { $("a-err").textContent = err.message; }
-};
-
-window.doRegister = async () => {
-  const name = $("a-name").value.trim(), 
-        e = $("a-email2").value.trim(), 
-        p = $("a-pass2").value;
-  if (!name) return $("a-err").textContent = "Введите имя";
-  try {
-    const c = await createUserWithEmailAndPassword(auth, e, p);
-    await updateProfile(c.user, { displayName: name });
-    await setDoc(doc(db, "users", c.user.uid), { uid: c.user.uid, displayName: name, email: e, createdAt: serverTimestamp() });
-  } catch(err) { $("a-err").textContent = err.message; }
-};
-
-window.doLogout = async () => { if (unsub) unsub(); await signOut(auth); };
-
-async function loadUsers() {
-  const snap = await getDocs(collection(db, "users"));
-  users = [];
-  snap.forEach(d => { if (d.id !== me.uid) users.push(d.data()); });
-  renderUsers(users);
-}
-
-function renderUsers(list) {
-  const ul = $("users");
-  ul.innerHTML = "";
-  list.forEach(u => {
-    const li = document.createElement("li");
-    li.className = u.uid === selectedUid ? "active" : "";
-    li.innerHTML = `<span class="av">${u.displayName[0].toUpperCase()}</span><span>${u.displayName}</span>`;
-    li.onclick = () => selectUser(u);
-    ul.appendChild(li);
-  });
-}
-
-function selectUser(u) {
-  selectedUid = u.uid;
-  renderUsers(users);
-  $("chat-name").textContent   = u.displayName;
-  $("empty").style.display     = "none";
-  $("chat-body").style.display = "flex";
-  if (unsub) unsub();
-  const chatId = [me.uid, u.uid].sort().join("_");
-  const q = query(collection(db, "chats", chatId, "messages"), orderBy("createdAt"));
-  unsub = onSnapshot(q, snap => {
-    const box = $("msgs");
-    box.innerHTML = "";
-    snap.forEach(d => {
-      const m = d.data(), div = document.createElement("div");
-      div.className = "msg " + (m.senderId === me.uid ? "out" : "in");
-      div.innerHTML = `<p>${esc(m.text)}</p><time>${fmt(m.createdAt)}</time>`;
-      box.appendChild(div);
-    });
-    box.scrollTop = box.scrollHeight;
-  });
-}
-
-window.send = async () => {
-  const inp = $("inp"), text = inp.value.trim();
-  if (!text || !selectedUid) return;
-  inp.value = "";
-  const chatId = [me.uid, selectedUid].sort().join("_");
-  await setDoc(doc(db, "chats", chatId), { participants: [me.uid, selectedUid] });
-  await addDoc(collection(db, "chats", chatId, "messages"), { text, senderId: me.uid, createdAt: serverTimestamp() });
-};
-
-document.addEventListener("DOMContentLoaded", () => {
-  $("inp") && $("inp").addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } });
-  $("search") && $("search").addEventListener("input", e => { const q = e.target.value.toLowerCase(); renderUsers(users.filter(u => u.displayName.toLowerCase().includes(q))); });
-});
-
-window.showTab = t => {
-  $("tab-in").classList.toggle("on", t==="in");
-  $("tab-up").classList.toggle("on", t==="up");
-  $("f-in").style.display = t==="in" ? "contents" : "none";
-  $("f-up").style.display = t==="up" ? "contents" : "none";
-  $("a-err").textContent = "";
-};
-
-function esc(t) { return t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
-function fmt(ts) { if (!ts) return ""; const d = ts.toDate ? ts.toDate() : new Date(); return d.toLocaleTimeString("ru",{hour:"2-digit",minute:"2-digit"}); }
-</script>
-
-<style>
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-body {
-  font-family: "Inter", sans-serif;
-  background: #fff;
-  color: #000;
-  height: 100dvh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* ── AUTH ── */
-#auth {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%; height: 100%;
-}
-
-.auth-box {
-  width: 320px;
-  border: 1px solid #e0e0e0;
-  border-radius: 12px;
-  padding: 32px 28px;
-}
-
-.auth-box h1 {
-  font-size: 18px;
-  font-weight: 600;
-  margin-bottom: 20px;
-  letter-spacing: -.02em;
-}
-
-.tabs {
-  display: flex;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  overflow: hidden;
-  margin-bottom: 18px;
-}
-.tab {
-  flex: 1; padding: 9px;
-  border: none; background: #fff;
-  font-family: "Inter", sans-serif; font-size: 13px;
-  cursor: pointer; color: #888;
-  transition: background .15s, color .15s;
-}
-.tab.on { background: #000; color: #fff; }
-
-.auth-fields { display: contents; }
-
-input[type=text], input[type=email], input[type=password] {
-  display: block; width: 100%;
-  margin-bottom: 9px;
-  padding: 10px 13px;
-  border: 1px solid #e0e0e0; border-radius: 8px;
-  font-family: "Inter", sans-serif; font-size: 14px;
-  color: #000; background: #fff; outline: none;
-  transition: border-color .15s;
-}
-input:focus { border-color: #000; }
-input::placeholder { color: #bbb; }
-
-.btn {
-  display: block; width: 100%;
-  padding: 11px; background: #000; color: #fff;
-  border: none; border-radius: 8px;
-  font-family: "Inter", sans-serif; font-size: 14px; font-weight: 500;
-  cursor: pointer; margin-top: 4px;
-  transition: opacity .15s;
-}
-.btn:hover { opacity: .75; }
-
-#a-err { font-size: 12px; color: #c00; margin-top: 10px; min-height: 16px; }
-
-/* ── APP ── */
-#app {
-  display: none;
-  width: 100%; height: 100%;
-  grid-template-columns: 240px 1fr;
-}
-
-.sidebar {
-  border-right: 1px solid #e8e8e8;
-  display: flex; flex-direction: column; overflow: hidden;
-}
-
-.sidebar-top {
-  padding: 16px 14px 12px;
-  border-bottom: 1px solid #e8e8e8;
-}
-
-.me-row {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 10px;
-}
-#me-name { font-size: 13px; font-weight: 600; }
-
-.logout-btn {
-  border: none; background: none;
-  font-family: "Inter", sans-serif; font-size: 12px;
-  color: #bbb; cursor: pointer;
-}
-.logout-btn:hover { color: #000; }
-
-#search {
-  width: 100%; padding: 8px 11px;
-  border: 1px solid #e8e8e8; border-radius: 7px;
-  font-size: 13px; font-family: "Inter", sans-serif;
-  color: #000; background: #f7f7f7; outline: none;
-}
-#search:focus { border-color: #000; background: #fff; }
-
-.sidebar-label {
-  font-size: 11px; text-transform: uppercase; letter-spacing: .07em;
-  color: #bbb; padding: 12px 14px 5px;
-}
-
-#users { list-style: none; overflow-y: auto; flex: 1; padding: 0 6px 8px; }
-#users::-webkit-scrollbar { width: 3px; }
-#users::-webkit-scrollbar-thumb { background: #e8e8e8; }
-
-#users li {
-  display: flex; align-items: center; gap: 10px;
-  padding: 9px 10px; border-radius: 8px;
-  cursor: pointer; font-size: 14px;
-  transition: background .12s;
-}
-#users li:hover { background: #f5f5f5; }
-#users li.active { background: #000; color: #fff; }
-#users li.active .av { background: #fff; color: #000; }
-
-.av {
-  width: 32px; height: 32px;
-  background: #000; color: #fff;
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 13px; font-weight: 600; flex-shrink: 0;
-}
-
-/* ── CHAT ── */
-.chat { display: flex; flex-direction: column; overflow: hidden; }
-
-#empty {
-  flex: 1; display: flex; align-items: center; justify-content: center;
-  color: #ccc; font-size: 14px;
-}
-
-#chat-body {
-  display: none; flex-direction: column; flex: 1; overflow: hidden;
-}
-
-.chat-header {
-  padding: 15px 20px;
-  border-bottom: 1px solid #e8e8e8;
-  font-size: 15px; font-weight: 600;
-}
-
-#msgs {
-  flex: 1; overflow-y: auto;
-  padding: 18px 20px;
-  display: flex; flex-direction: column; gap: 6px;
-}
-#msgs::-webkit-scrollbar { width: 3px; }
-#msgs::-webkit-scrollbar-thumb { background: #e8e8e8; }
-
-.msg { display: flex; flex-direction: column; max-width: 55%; }
-.msg.out { align-self: flex-end; align-items: flex-end; }
-.msg.in  { align-self: flex-start; align-items: flex-start; }
-
-.msg p {
-  padding: 9px 13px; border-radius: 14px;
-  font-size: 14px; line-height: 1.5; word-break: break-word;
-}
-.msg.out p { background: #000; color: #fff; border-bottom-right-radius: 3px; }
-.msg.in  p { background: #f2f2f2; color: #000; border-bottom-left-radius: 3px; }
-
-.msg time { font-size: 11px; color: #bbb; margin-top: 3px; padding: 0 3px; }
-
-.input-bar {
-  display: flex; gap: 8px;
-  padding: 12px 14px;
-  border-top: 1px solid #e8e8e8;
-}
-#inp {
-  flex: 1; padding: 10px 13px;
-  border: 1px solid #e0e0e0; border-radius: 8px;
-  font-size: 14px; font-family: "Inter", sans-serif;
-  outline: none; margin-bottom: 0;
-}
-#inp:focus { border-color: #000; }
-
-.send-btn {
-  width: 40px; height: 40px;
-  background: #000; border: none; border-radius: 8px;
-  color: #fff; font-size: 17px;
-  cursor: pointer; display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0; transition: opacity .15s;
-}
-.send-btn:hover { opacity: .7; }
-</style>
+  <meta charset="UTF-8" />
+  <title>Монитор группы</title>
+  <style>
+    body { font-family: sans-serif; background: #f0f0f0; display: flex; justify-content: center; padding: 40px; }
+    .card { background: white; border-radius: 12px; padding: 24px; width: 400px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    h2 { margin-top: 0; }
+    .info { margin-bottom: 16px; color: #555; }
+    .buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 24px; }
+    button { padding: 12px; border: none; border-radius: 8px; color: white; font-size: 14px; cursor: pointer; }
+    .btn-green { background: #4CAF50; }
+    .btn-yellow { background: #FFC107; color: #333; }
+    .btn-teal { background: #00BCD4; }
+    .btn-gray { background: #9E9E9E; }
+    hr { border: none; border-top: 1px solid #eee; margin-bottom: 16px; }
+    h3 { margin-top: 0; }
+    .user-item { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+    .status-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+    .user-name { font-weight: bold; }
+    .user-status { font-size: 12px; color: #888; }
+  </style>
 </head>
 <body>
-
-<div id="auth">
-  <div class="auth-box">
-    <h1>Messenger</h1>
-    <div class="tabs">
-      <button class="tab on" id="tab-in" onclick="showTab('in')">Войти</button>
-      <button class="tab"    id="tab-up" onclick="showTab('up')">Регистрация</button>
+  <div class="card">
+    <h2>Мой профиль</h2>
+    <p class="info">Вы зашли как: <strong id="myinfo"></strong></p>
+    <div class="buttons">
+      <button class="btn-green" onclick="changeStatus('Учусь', '#4CAF50')">✏ Учусь</button>
+      <button class="btn-yellow" onclick="changeStatus('Кофе-брейк', '#FFC107')">☕ Кофе</button>
+      <button class="btn-teal" onclick="changeStatus('В игре', '#00BCD4')">🎮 В игре</button>
+      <button class="btn-gray" onclick="changeStatus('Дома', '#9E9E9E')">🏠 Дома</button>
     </div>
-    <div id="f-in" class="auth-fields">
-      <input id="a-email" type="email"    placeholder="Email"/>
-      <input id="a-pass"  type="password" placeholder="Пароль"/>
-      <button class="btn" onclick="doLogin()">Войти</button>
-    </div>
-    <div id="f-up" class="auth-fields" style="display:none">
-  <input id="a-name"   type="text"     placeholder="Имя"/>
-  <input id="a-email2" type="email"    placeholder="Email"/>
-  <input id="a-pass2"  type="password" placeholder="Пароль"/>
-  <button class="btn" onclick="doRegister()">Создать аккаунт</button>
-    </div>
-    <div id="a-err"></div>
+    <hr />
+    <h3>Монитор группы</h3>
+    <ul id="grouplist" style="list-style:none; padding:0; margin:0;"></ul>
   </div>
-</div>
-
-<div id="app">
-  <div class="sidebar">
-    <div class="sidebar-top">
-      <div class="me-row">
-        <span id="me-name"></span>
-        <button class="logout-btn" onclick="doLogout()">выйти</button>
-      </div>
-      <input id="search" type="text" placeholder="Поиск..."/>
-    </div>
-    <div class="sidebar-label">Пользователи</div>
-    <ul id="users"></ul>
-  </div>
-
-  <div class="chat">
-    <div id="empty">← Выберите собеседника</div>
-    <div id="chat-body">
-      <div class="chat-header" id="chat-name"></div>
-      <div id="msgs"></div>
-      <div class="input-bar">
-        <input id="inp" type="text" placeholder="Сообщение..."/>
-        <button class="send-btn" onclick="send()">↑</button>
-      </div>
-    </div>
-  </div>
-</div>
-
+ 
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+ 
+    const URL = 'https://pgmiupvfqzwujbpqwtfj.supabase.co';
+    const KEY = 'sb_publishable_GgyVc9zb14RP0sZmPoQT6w_hV7w4Mf7';
+    const supabase = createClient(URL, KEY);
+ 
+    const MY_ID = '9d4025af-1f5b-410c-a2e7-586a74619312';
+ 
+    window.changeStatus = async (text, color) => {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ status: text, color: color })
+        .eq('id', MY_ID);
+ 
+      if (error) {
+        alert("Ошибка! Проверьте RLS политики в Supabase.");
+        console.error(error);
+      } else {
+        fetchGroup();
+      }
+    };
+ 
+    async function fetchGroup() {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('username', { ascending: true });
+ 
+      if (error) return console.error(error);
+ 
+      const list = document.getElementById('grouplist');
+      list.innerHTML = data.map(user => `
+        <li class="user-item">
+          <div class="status-dot" style="background: ${user.color || '#ccc'}"></div>
+          <div>
+            <div class="user-name"><strong>${user.username}</strong></div>
+            <div class="user-status" style="color: #888;">${user.status || 'Статус не задан'}</div>
+          </div>
+        </li>
+      `).join('');
+ 
+      const me = data.find(u => u.id === MY_ID);
+      if (me) document.getElementById('myinfo').innerText = `Mers`;
+    }
+ 
+    fetchGroup();
+    setInterval(fetchGroup, 5000);
+  </script>
 </body>
 </html>
