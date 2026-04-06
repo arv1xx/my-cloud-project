@@ -14,44 +14,125 @@
     .btn-yellow { background: #FFC107; color: #333; }
     .btn-teal { background: #00BCD4; }
     .btn-gray { background: #9E9E9E; }
+    .btn-google { background: #fff; color: #333; border: 1px solid #ddd; display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-bottom: 16px; }
+    .btn-logout { background: #f44336; width: 100%; margin-bottom: 16px; }
     hr { border: none; border-top: 1px solid #eee; margin-bottom: 16px; }
     h3 { margin-top: 0; }
     .user-item { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
     .status-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
     .user-name { font-weight: bold; }
     .user-status { font-size: 12px; color: #888; }
+    #login-section { text-align: center; }
+    #main-section { display: none; }
   </style>
 </head>
 <body>
   <div class="card">
-    <h2>Мой профиль</h2>
-    <p class="info">Вы зашли как: <strong id="myinfo"></strong></p>
-    <div class="buttons">
-      <button class="btn-green" onclick="changeStatus('Учусь', '#4CAF50')">✏ Учусь</button>
-      <button class="btn-yellow" onclick="changeStatus('Кофе-брейк', '#FFC107')">☕ Кофе</button>
-      <button class="btn-teal" onclick="changeStatus('В игре', '#00BCD4')">🎮 В игре</button>
-      <button class="btn-gray" onclick="changeStatus('Дома', '#9E9E9E')">🏠 Дома</button>
+
+    <!-- Экран входа -->
+    <div id="login-section">
+      <h2>Добро пожаловать</h2>
+      <p style="color:#555;">Войдите чтобы использовать монитор группы</p>
+      <button class="btn-google" onclick="signInWithGoogle()">
+        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="20"/>
+        Войти через Google
+      </button>
     </div>
-    <hr />
-    <h3>Монитор группы</h3>
-    <ul id="grouplist" style="list-style:none; padding:0; margin:0;"></ul>
+
+    <!-- Основной экран -->
+    <div id="main-section">
+      <h2>Мой профиль</h2>
+      <p class="info">Вы зашли как: <strong id="myinfo"></strong></p>
+      <div class="buttons">
+        <button class="btn-green" onclick="changeStatus('Учусь', '#4CAF50')">✏ Учусь</button>
+        <button class="btn-yellow" onclick="changeStatus('Кофе-брейк', '#FFC107')">☕ Кофе</button>
+        <button class="btn-teal" onclick="changeStatus('В игре', '#00BCD4')">🎮 В игре</button>
+        <button class="btn-gray" onclick="changeStatus('Дома', '#9E9E9E')">🏠 Дома</button>
+      </div>
+      <button class="btn-logout" onclick="signOut()">Выйти</button>
+      <hr />
+      <h3>Монитор группы</h3>
+      <ul id="grouplist" style="list-style:none; padding:0; margin:0;"></ul>
+    </div>
+
   </div>
- 
+
   <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
- 
+
     const URL = 'https://pgmiupvfqzwujbpqwtfj.supabase.co';
     const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBnbWl1cHZmcXp3dWpicHF3dGZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NDE5NzAsImV4cCI6MjA5MDQxNzk3MH0.NFpJ6nNtHCj2AE7ox7i8oHyrdDGJjcdqT-NsbkUEMTA';
     const supabase = createClient(URL, KEY);
- 
-    const MY_ID = '9d4025af-1f5b-410c-a2e7-586a74619312';
- 
+
+    let currentUser = null;
+    let intervalId = null;
+
+    // Проверка сессии при загрузке
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      currentUser = session.user;
+      await onLogin(currentUser);
+    }
+
+    // Слушаем изменения авторизации
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session) {
+        currentUser = session.user;
+        await onLogin(currentUser);
+      } else {
+        currentUser = null;
+        if (intervalId) clearInterval(intervalId);
+        document.getElementById('login-section').style.display = 'block';
+        document.getElementById('main-section').style.display = 'none';
+      }
+    });
+
+    async function onLogin(user) {
+      document.getElementById('login-section').style.display = 'none';
+      document.getElementById('main-section').style.display = 'block';
+
+      const username = user.user_metadata?.full_name || user.email;
+      document.getElementById('myinfo').innerText = username;
+
+      // Создаём запись в profiles если её нет
+      const { data: existing } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (!existing) {
+        await supabase.from('profiles').insert({
+          id: user.id,
+          username: username,
+          status: 'Дома',
+          color: '#9E9E9E'
+        });
+      }
+
+      fetchGroup();
+      intervalId = setInterval(fetchGroup, 5000);
+    }
+
+    window.signInWithGoogle = async () => {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: window.location.href }
+      });
+      if (error) console.error(error);
+    };
+
+    window.signOut = async () => {
+      await supabase.auth.signOut();
+    };
+
     window.changeStatus = async (text, color) => {
+      if (!currentUser) return;
       const { error } = await supabase
         .from('profiles')
         .update({ status: text, color: color })
-        .eq('id', MY_ID);
- 
+        .eq('id', currentUser.id);
+
       if (error) {
         alert("Ошибка! Проверьте RLS политики в Supabase.");
         console.error(error);
@@ -59,15 +140,15 @@
         fetchGroup();
       }
     };
- 
+
     async function fetchGroup() {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .order('username', { ascending: true });
- 
+
       if (error) return console.error(error);
- 
+
       const list = document.getElementById('grouplist');
       list.innerHTML = data.map(user => `
         <li class="user-item">
@@ -78,13 +159,7 @@
           </div>
         </li>
       `).join('');
- 
-      const me = data.find(u => u.id === MY_ID);
-      if (me) document.getElementById('myinfo').innerText = `Mers`;
     }
- 
-    fetchGroup();
-    setInterval(fetchGroup, 5000);
   </script>
 </body>
 </html>
