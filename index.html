@@ -58,108 +58,100 @@
   </div>
 
   <script type="module">
-    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
 
-    const URL = 'https://pgmiupvfqzwujbpqwtfj.supabase.co';
-    const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBnbWl1cHZmcXp3dWpicHF3dGZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NDE5NzAsImV4cCI6MjA5MDQxNzk3MH0.NFpJ6nNtHCj2AE7ox7i8oHyrdDGJjcdqT-NsbkUEMTA';
-    const supabase = createClient(URL, KEY);
+  const SUPA_URL = 'https://pgmiupvfqzwujbpqwtfj.supabase.co';
+  const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBnbWl1cHZmcXp3dWpicHF3dGZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NDE5NzAsImV4cCI6MjA5MDQxNzk3MH0.NFpJ6nNtHCj2AE7ox7i8oHyrdDGJjcdqT-NsbkUEMTA';
+  const supabase = createClient(SUPA_URL, KEY);
 
-    let currentUser = null;
-    let intervalId = null;
+  let currentUser = null;
+  let intervalId = null;
 
-    // Проверка сессии при загрузке
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
+  // Слушаем изменения авторизации — это главное
+  supabase.auth.onAuthStateChange(async (event, session) => {
+    if (session && session.user) {
       currentUser = session.user;
       await onLogin(currentUser);
+    } else {
+      currentUser = null;
+      if (intervalId) clearInterval(intervalId);
+      document.getElementById('login-section').style.display = 'block';
+      document.getElementById('main-section').style.display = 'none';
     }
+  });
 
-    // Слушаем изменения авторизации
-    supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session) {
-        currentUser = session.user;
-        await onLogin(currentUser);
-      } else {
-        currentUser = null;
-        if (intervalId) clearInterval(intervalId);
-        document.getElementById('login-section').style.display = 'block';
-        document.getElementById('main-section').style.display = 'none';
-      }
-    });
+  async function onLogin(user) {
+    document.getElementById('login-section').style.display = 'none';
+    document.getElementById('main-section').style.display = 'block';
 
-    async function onLogin(user) {
-      document.getElementById('login-section').style.display = 'none';
-      document.getElementById('main-section').style.display = 'block';
+    const username = user.user_metadata?.full_name || user.email;
+    document.getElementById('myinfo').innerText = username;
 
-      const username = user.user_metadata?.full_name || user.email;
-      document.getElementById('myinfo').innerText = username;
+    const { data: existing } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single();
 
-      // Создаём запись в profiles если её нет
-      const { data: existing } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-
-      if (!existing) {
-        await supabase.from('profiles').insert({
-          id: user.id,
-          username: username,
-          status: 'Дома',
-          color: '#9E9E9E'
-        });
-      }
-
-      fetchGroup();
-      intervalId = setInterval(fetchGroup, 5000);
-    }
-
-    window.signInWithGoogle = async () => {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: { redirectTo: window.location.href }
+    if (!existing) {
+      await supabase.from('profiles').insert({
+        id: user.id,
+        username: username,
+        status: 'Дома',
+        color: '#9E9E9E'
       });
-      if (error) console.error(error);
-    };
-
-    window.signOut = async () => {
-      await supabase.auth.signOut();
-    };
-
-    window.changeStatus = async (text, color) => {
-      if (!currentUser) return;
-      const { error } = await supabase
-        .from('profiles')
-        .update({ status: text, color: color })
-        .eq('id', currentUser.id);
-
-      if (error) {
-        alert("Ошибка! Проверьте RLS политики в Supabase.");
-        console.error(error);
-      } else {
-        fetchGroup();
-      }
-    };
-
-    async function fetchGroup() {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('username', { ascending: true });
-
-      if (error) return console.error(error);
-
-      const list = document.getElementById('grouplist');
-      list.innerHTML = data.map(user => `
-        <li class="user-item">
-          <div class="status-dot" style="background: ${user.color || '#ccc'}"></div>
-          <div>
-            <div class="user-name"><strong>${user.username}</strong></div>
-            <div class="user-status" style="color: #888;">${user.status || 'Статус не задан'}</div>
-          </div>
-        </li>
-      `).join('');
     }
-  </script>
+
+    if (intervalId) clearInterval(intervalId);
+    fetchGroup();
+    intervalId = setInterval(fetchGroup, 5000);
+  }
+
+  window.signInWithGoogle = async () => {
+    await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: 'https://arv1xx.github.io/my-cloud-project/' }
+    });
+  };
+
+  window.signOut = async () => {
+    await supabase.auth.signOut();
+  };
+
+  window.changeStatus = async (text, color) => {
+    if (!currentUser) return;
+    const { error } = await supabase
+      .from('profiles')
+      .update({ status: text, color: color })
+      .eq('id', currentUser.id);
+
+    if (error) {
+      alert("Ошибка! Проверьте RLS политики в Supabase.");
+      console.error(error);
+    } else {
+      fetchGroup();
+    }
+  };
+
+  async function fetchGroup() {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .order('username', { ascending: true });
+
+    if (error) return console.error(error);
+
+    const list = document.getElementById('grouplist');
+    list.innerHTML = data.map(user => `
+      <li class="user-item">
+        <div class="status-dot" style="background: ${user.color || '#ccc'}"></div>
+        <div>
+          <div class="user-name"><strong>${user.username}</strong></div>
+          <div class="user-status" style="color: #888;">${user.status || 'Статус не задан'}</div>
+        </div>
+      </li>
+    `).join('');
+  }
+</script>
 </body>
 </html>
