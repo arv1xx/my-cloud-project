@@ -108,16 +108,11 @@
   }
 
   window.signInWithGoogle = async () => {
-  await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: { 
-      redirectTo: 'https://arv1xx.github.io/my-cloud-project/',
-      queryParams: {
-        prompt: 'select_account'
-      }
-    }
-  });
-};
+    await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: 'https://arv1xx.github.io/my-cloud-project/' }
+    });
+  };
     
   window.signOut = async () => {
     await supabase.auth.signOut();
