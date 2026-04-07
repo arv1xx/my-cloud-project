@@ -29,7 +29,6 @@
 <body>
   <div class="card">
 
-    <!-- Экран входа -->
     <div id="login-section">
       <h2>Добро пожаловать</h2>
       <p style="color:#555;">Войдите чтобы использовать монитор группы</p>
@@ -39,7 +38,6 @@
       </button>
     </div>
 
-    <!-- Основной экран -->
     <div id="main-section">
       <h2>Мой профиль</h2>
       <p class="info">Вы зашли как: <strong id="myinfo"></strong></p>
@@ -57,101 +55,109 @@
 
   </div>
 
-  <script type="module">
-  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const SUPA_URL = 'https://pgmiupvfqzwujbpqwtfj.supabase.co';
+    const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBnbWl1cHZmcXp3dWpicHF3dGZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NDE5NzAsImV4cCI6MjA5MDQxNzk3MH0.NFpJ6nNtHCj2AE7ox7i8oHyrdDGJjcdqT-NsbkUEMTA';
+    const supabase = window.supabase.createClient(SUPA_URL, KEY);
 
-  const SUPA_URL = 'https://pgmiupvfqzwujbpqwtfj.supabase.co';
-  const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBnbWl1cHZmcXp3dWpicHF3dGZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NDE5NzAsImV4cCI6MjA5MDQxNzk3MH0.NFpJ6nNtHCj2AE7ox7i8oHyrdDGJjcdqT-NsbkUEMTA';
-  const supabase = createClient(SUPA_URL, KEY);
+    let currentUser = null;
+    let intervalId = null;
 
-  let currentUser = null;
-  let intervalId = null;
+    async function onLogin(user) {
+      currentUser = user;
+      document.getElementById('login-section').style.display = 'none';
+      document.getElementById('main-section').style.display = 'block';
 
-  // Слушаем изменения авторизации — это главное
-  supabase.auth.onAuthStateChange(async (event, session) => {
-    if (session && session.user) {
-      currentUser = session.user;
-      await onLogin(currentUser);
-    } else {
+      const username = user.user_metadata?.full_name || user.email;
+      document.getElementById('myinfo').innerText = username;
+
+      const { data: existing } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (!existing) {
+        await supabase.from('profiles').insert({
+          id: user.id,
+          username: username,
+          status: 'Дома',
+          color: '#9E9E9E'
+        });
+      }
+
+      if (intervalId) clearInterval(intervalId);
+      fetchGroup();
+      intervalId = setInterval(fetchGroup, 5000);
+    }
+
+    function onLogout() {
       currentUser = null;
       if (intervalId) clearInterval(intervalId);
       document.getElementById('login-section').style.display = 'block';
       document.getElementById('main-section').style.display = 'none';
     }
-  });
 
-  async function onLogin(user) {
-    document.getElementById('login-section').style.display = 'none';
-    document.getElementById('main-section').style.display = 'block';
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        onLogin(session.user);
+      }
+    });
 
-    const username = user.user_metadata?.full_name || user.email;
-    document.getElementById('myinfo').innerText = username;
+    supabase.auth.onAuthStateChange((event, session) => {
+      if (session?.user) {
+        onLogin(session.user);
+      } else {
+        onLogout();
+      }
+    });
 
-    const { data: existing } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single();
-
-    if (!existing) {
-      await supabase.from('profiles').insert({
-        id: user.id,
-        username: username,
-        status: 'Дома',
-        color: '#9E9E9E'
+    function signInWithGoogle() {
+      supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: 'https://arv1xx.github.io/my-cloud-project/' }
       });
     }
 
-    if (intervalId) clearInterval(intervalId);
-    fetchGroup();
-    intervalId = setInterval(fetchGroup, 5000);
-  }
-
-  window.signInWithGoogle = async () => {
-  await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: { redirectTo: 'https://arv1xx.github.io/my-cloud-project/' }
-  });
-};
-    
-  window.signOut = async () => {
-    await supabase.auth.signOut();
-  };
-
-  window.changeStatus = async (text, color) => {
-    if (!currentUser) return;
-    const { error } = await supabase
-      .from('profiles')
-      .update({ status: text, color: color })
-      .eq('id', currentUser.id);
-
-    if (error) {
-      alert("Ошибка! Проверьте RLS политики в Supabase.");
-      console.error(error);
-    } else {
-      fetchGroup();
+    function signOut() {
+      supabase.auth.signOut();
     }
-  };
 
-  async function fetchGroup() {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .order('username', { ascending: true });
+    async function changeStatus(text, color) {
+      if (!currentUser) return;
+      const { error } = await supabase
+        .from('profiles')
+        .update({ status: text, color: color })
+        .eq('id', currentUser.id);
 
-    if (error) return console.error(error);
+      if (error) {
+        alert("Ошибка! Проверьте RLS политики в Supabase.");
+        console.error(error);
+      } else {
+        fetchGroup();
+      }
+    }
 
-    const list = document.getElementById('grouplist');
-    list.innerHTML = data.map(user => `
-      <li class="user-item">
-        <div class="status-dot" style="background: ${user.color || '#ccc'}"></div>
-        <div>
-          <div class="user-name"><strong>${user.username}</strong></div>
-          <div class="user-status" style="color: #888;">${user.status || 'Статус не задан'}</div>
-        </div>
-      </li>
-    `).join('');
-  }
-</script>
+    async function fetchGroup() {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('username', { ascending: true });
+
+      if (error) return console.error(error);
+
+      const list = document.getElementById('grouplist');
+      list.innerHTML = data.map(user => `
+        <li class="user-item">
+          <div class="status-dot" style="background: ${user.color || '#ccc'}"></div>
+          <div>
+            <div class="user-name"><strong>${user.username}</strong></div>
+            <div class="user-status" style="color: #888;">${user.status || 'Статус не задан'}</div>
+          </div>
+        </li>
+      `).join('');
+    }
+  </script>
 </body>
 </html>
