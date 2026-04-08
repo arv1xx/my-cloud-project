@@ -1,1 +1,130 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Монитор группы</title>
+  <style>
+    body { font-family: sans-serif; background: #f0f0f0; display: flex; justify-content: center; padding: 40px; }
+    .card { background: white; border-radius: 12px; padding: 24px; width: 400px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    h2 { margin-top: 0; }
+    .info { margin-bottom: 16px; color: #555; }
+    .buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 24px; }
+    button { padding: 12px; border: none; border-radius: 8px; color: white; font-size: 14px; cursor: pointer; }
+    .btn-green { background: #4CAF50; }
+    .btn-yellow { background: #FFC107; color: #333; }
+    .btn-teal { background: #00BCD4; }
+    .btn-gray { background: #9E9E9E; }
+    .btn-google { background: #fff; color: #333; border: 1px solid #ddd; display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-bottom: 16px; }
+    .btn-logout { background: #f44336; width: 100%; margin-bottom: 16px; }
+    hr { border: none; border-top: 1px solid #eee; margin-bottom: 16px; }
+    h3 { margin-top: 0; }
+    .user-item { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+    .status-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+    .user-name { font-weight: bold; }
+    .user-status { font-size: 12px; color: #888; }
+    #login-section { text-align: center; }
+    #main-section { display: none; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div id="login-section">
+      <h2>Добро пожаловать</h2>
+      <p style="color:#555;">Войдите чтобы использовать монитор группы</p>
+      <button class="btn-google" onclick="signInWithGoogle()">
+        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="20"/>
+        Войти через Google
+      </button>
+    </div>
+    <div id="main-section">
+      <h2>Мой профиль</h2>
+      <p class="info">Вы зашли как: <strong id="myinfo"></strong></p>
+      <div class="buttons">
+        <button class="btn-green" onclick="changeStatus('Учусь', '#4CAF50')">✏ Учусь</button>
+        <button class="btn-yellow" onclick="changeStatus('Кофе-брейк', '#FFC107')">☕ Кофе</button>
+        <button class="btn-teal" onclick="changeStatus('В игре', '#00BCD4')">🎮 В игре</button>
+        <button class="btn-gray" onclick="changeStatus('Дома', '#9E9E9E')">🏠 Дома</button>
+      </div>
+      <button class="btn-logout" onclick="signOut()">Выйти</button>
+      <hr />
+      <h3>Монитор группы</h3>
+      <ul id="grouplist" style="list-style:none; padding:0; margin:0;"></ul>
+    </div>
+  </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const _supabase = supabase.createClient(
+      'https://pgmiupvfqzwujbpqwtfj.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBnbWl1cHZmcXp3dWpicHF3dGZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NDE5NzAsImV4cCI6MjA5MDQxNzk3MH0.NFpJ6nNtHCj2AE7ox7i8oHyrdDGJjcdqT-NsbkUEMTA'
+    );
+
+    let currentUser = null;
+    let intervalId = null;
+
+    async function onLogin(user) {
+      currentUser = user;
+      document.getElementById('login-section').style.display = 'none';
+      document.getElementById('main-section').style.display = 'block';
+      const username = user.user_metadata?.full_name || user.email;
+      document.getElementById('myinfo').innerText = username;
+      const { data: existing } = await _supabase.from('profiles').select('*').eq('id', user.id).single();
+      if (!existing) {
+        await _supabase.from('profiles').insert({ id: user.id, username: username, status: 'Дома', color: '#9E9E9E' });
+      }
+      if (intervalId) clearInterval(intervalId);
+      fetchGroup();
+      intervalId = setInterval(fetchGroup, 5000);
+    }
+
+    function onLogout() {
+      currentUser = null;
+      if (intervalId) clearInterval(intervalId);
+      document.getElementById('login-section').style.display = 'block';
+      document.getElementById('main-section').style.display = 'none';
+    }
+
+    _supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) onLogin(session.user);
+    });
+
+    _supabase.auth.onAuthStateChange((event, session) => {
+      if (session?.user) onLogin(session.user);
+      else onLogout();
+    });
+
+    function signInWithGoogle() {
+      _supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: 'https://arv1xx.github.io/my-cloud-project/' }
+      });
+    }
+
+    function signOut() {
+      _supabase.auth.signOut();
+    }
+
+    async function changeStatus(text, color) {
+      if (!currentUser) return;
+      const { error } = await _supabase.from('profiles').update({ status: text, color: color }).eq('id', currentUser.id);
+      if (error) { alert("Ошибка!"); console.error(error); }
+      else fetchGroup();
+    }
+
+    async function fetchGroup() {
+      const { data, error } = await _supabase.from('profiles').select('*').order('username', { ascending: true });
+      if (error) return console.error(error);
+      const list = document.getElementById('grouplist');
+      list.innerHTML = data.map(u => `
+        <li class="user-item">
+          <div class="status-dot" style="background: ${u.color || '#ccc'}"></div>
+          <div>
+            <div class="user-name"><strong>${u.username}</strong></div>
+            <div class="user-status" style="color: #888;">${u.status || 'Статус не задан'}</div>
+          </div>
+        </li>
+      `).join('');
+    }
+  </script>
+</body>
+</html>
