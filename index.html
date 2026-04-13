@@ -30,12 +30,10 @@
     .my-timer { font-size: 28px; font-weight: bold; text-align: center; margin: 10px 0; color: #333; }
     .my-timer-label { text-align: center; font-size: 13px; color: #888; margin-bottom: 16px; }
 
-    /* Табы */
-    .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
-    .tab-btn { flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 8px; background: #f5f5f5; color: #555; font-size: 13px; cursor: pointer; }
+    .tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    .tab-btn { flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 8px; background: #f5f5f5; color: #555; font-size: 13px; cursor: pointer; min-width: 60px; }
     .tab-btn.active { background: #4CAF50; color: white; border-color: #4CAF50; }
 
-    /* Рейтинг */
     .rating-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
     .rating-rank { font-size: 16px; font-weight: bold; width: 24px; text-align: center; color: #aaa; }
     .rating-rank.gold { color: #FFD700; }
@@ -44,7 +42,6 @@
     .rating-name { flex: 1; font-size: 14px; font-weight: bold; }
     .rating-time { font-size: 12px; color: #888; text-align: right; }
 
-    /* Достижения */
     .achievements-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .achievement-card { border: 1px solid #eee; border-radius: 10px; padding: 10px; text-align: center; background: #fafafa; }
     .achievement-card.unlocked { border-color: #4CAF50; background: #f0fff0; }
@@ -53,13 +50,36 @@
     .achievement-name { font-size: 12px; font-weight: bold; color: #333; }
     .achievement-desc { font-size: 11px; color: #888; margin-top: 2px; }
 
-    /* Значки в профиле */
     .badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; margin-bottom: 12px; }
-    .badge { font-size: 18px; title: attr(data-title); cursor: default; }
+    .badge { font-size: 18px; cursor: default; }
 
-    /* Toast уведомление */
     #toast { display: none; position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
       background: #333; color: white; padding: 12px 20px; border-radius: 10px; font-size: 14px; z-index: 999; }
+
+    /* ===== ЦЕЛЬ ДНЯ ===== */
+    .goal-section { background: #f9f9f9; border-radius: 10px; padding: 14px; margin-bottom: 16px; border: 1px solid #eee; }
+    .goal-section h4 { margin: 0 0 10px 0; font-size: 14px; color: #333; }
+    .goal-input-row { display: flex; gap: 8px; margin-bottom: 10px; align-items: center; }
+    .goal-input-row input { flex: 1; padding: 8px 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; }
+    .goal-input-row button { padding: 8px 14px; font-size: 13px; border-radius: 8px; }
+    .goal-progress-label { display: flex; justify-content: space-between; font-size: 12px; color: #888; margin-bottom: 4px; }
+    .goal-progress-bar-bg { background: #eee; border-radius: 20px; height: 12px; overflow: hidden; }
+    .goal-progress-bar { height: 100%; border-radius: 20px; background: linear-gradient(90deg, #4CAF50, #81C784); transition: width 0.5s ease; }
+    .goal-progress-bar.done { background: linear-gradient(90deg, #FFD700, #FFC107); }
+    .goal-status-text { text-align: center; font-size: 12px; color: #888; margin-top: 6px; }
+
+    /* ===== ЗАМЕТКИ ===== */
+    .notes-section { }
+    .notes-add-row { display: flex; gap: 8px; margin-bottom: 10px; }
+    .notes-add-row input { flex: 1; padding: 9px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; }
+    .notes-add-row button { padding: 9px 14px; font-size: 13px; border-radius: 8px; }
+    .note-item { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
+    .note-check { width: 18px; height: 18px; cursor: pointer; accent-color: #4CAF50; flex-shrink: 0; }
+    .note-text { flex: 1; font-size: 13px; color: #333; }
+    .note-text.done-text { text-decoration: line-through; color: #bbb; }
+    .note-delete { background: none; border: none; color: #ddd; font-size: 16px; cursor: pointer; padding: 0 4px; }
+    .note-delete:hover { color: #f44336; }
+    .notes-empty { text-align: center; color: #ccc; font-size: 13px; padding: 20px 0; }
   </style>
 </head>
 <body>
@@ -77,10 +97,29 @@
       <h2>Мой профиль</h2>
       <p class="info">Вы зашли как: <strong id="myinfo"></strong></p>
       <div id="my-badges" class="badges"></div>
+
       <div id="my-timer-block" style="display:none;">
         <div class="my-timer" id="my-timer">00:00:00</div>
         <div class="my-timer-label">⏱ Время в учёбе</div>
       </div>
+
+      <!-- 🎯 ЦЕЛЬ ДНЯ -->
+      <div class="goal-section">
+        <h4>🎯 Цель дня</h4>
+        <div class="goal-input-row">
+          <input type="number" id="goal-input" min="0.5" max="24" step="0.5" placeholder="Часов (напр. 3)" />
+          <button class="btn-green" onclick="setDailyGoal()">Поставить</button>
+        </div>
+        <div class="goal-progress-label">
+          <span id="goal-progress-text">Цель не задана</span>
+          <span id="goal-percent-text"></span>
+        </div>
+        <div class="goal-progress-bar-bg">
+          <div class="goal-progress-bar" id="goal-progress-bar" style="width:0%"></div>
+        </div>
+        <div class="goal-status-text" id="goal-status-text"></div>
+      </div>
+
       <div class="buttons">
         <button class="btn-green" onclick="changeStatus('Учусь', '#4CAF50')">✏ Учусь</button>
         <button class="btn-yellow" onclick="changeStatus('Кофе-брейк', '#FFC107')">☕ Кофе</button>
@@ -93,7 +132,8 @@
       <div class="tabs">
         <button class="tab-btn active" onclick="switchTab('monitor')">👥 Группа</button>
         <button class="tab-btn" onclick="switchTab('rating')">🏆 Рейтинг</button>
-        <button class="tab-btn" onclick="switchTab('achievements')">🎖 Достижения</button>
+        <button class="tab-btn" onclick="switchTab('achievements')">🎖 Ачивки</button>
+        <button class="tab-btn" onclick="switchTab('notes')">📝 Заметки</button>
       </div>
 
       <!-- Монитор группы -->
@@ -109,6 +149,15 @@
       <!-- Достижения -->
       <div id="tab-achievements" style="display:none;">
         <div id="achievements-grid" class="achievements-grid"></div>
+      </div>
+
+      <!-- 📝 ЗАМЕТКИ -->
+      <div id="tab-notes" style="display:none;" class="notes-section">
+        <div class="notes-add-row">
+          <input type="text" id="note-input" placeholder="Новая задача на сегодня..." onkeydown="if(event.key==='Enter') addNote()" />
+          <button class="btn-green" onclick="addNote()">+</button>
+        </div>
+        <div id="notes-list"></div>
       </div>
 
       <hr />
@@ -134,7 +183,6 @@
       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBnbWl1cHZmcXp3dWpicHF3dGZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NDE5NzAsImV4cCI6MjA5MDQxNzk3MH0.NFpJ6nNtHCj2AE7ox7i8oHyrdDGJjcdqT-NsbkUEMTA'
     );
 
-    // ===== СПИСОК ДОСТИЖЕНИЙ =====
     const ACHIEVEMENTS = [
       { id: 'first_step',   icon: '🌱', name: 'Первый шаг',     desc: 'Провести первую учебную сессию' },
       { id: 'early_bird',   icon: '🌅', name: 'Ранняя пташка',  desc: 'Начать учёбу до 8:00 утра' },
@@ -146,6 +194,8 @@
       { id: 'night_owl',    icon: '🦉', name: 'Сова',           desc: 'Учиться после 23:00' },
       { id: 'consistent',   icon: '📅', name: 'Стабильность',   desc: 'Провести 5 учебных сессий' },
       { id: 'communicator', icon: '🗣', name: 'Душа компании',  desc: 'Написать 50 сообщений в чате' },
+      { id: 'goal_setter',  icon: '🎯', name: 'Целеустремлённый', desc: 'Выполнить дневную цель' },
+      { id: 'planner',      icon: '📝', name: 'Планировщик',    desc: 'Выполнить 5 задач из заметок' },
     ];
 
     let currentUser = null;
@@ -156,6 +206,256 @@
     let myAchievements = [];
     let sessionStartedAt = null;
     let hadBreakBeforeStudy = false;
+
+    // ===== ЦЕЛЬ ДНЯ — переменные =====
+    let dailyGoalSeconds = 0;    // цель в секундах
+    let dailyGoalDate = '';      // дата цели (yyyy-mm-dd)
+    let goalTimerInterval = null;
+
+    // ===== ЗАМЕТКИ — локальный массив =====
+    let notes = [];
+
+    // ==========================================
+    // 🎯 ФУНКЦИЯ 1: ЦЕЛЬ ДНЯ
+    // ==========================================
+
+    /**
+     * setDailyGoal() — сохраняет дневную цель пользователя в Supabase.
+     * Читает значение из поля ввода (часы), переводит в секунды,
+     * сохраняет в profiles: daily_goal_seconds + daily_goal_date.
+     * После сохранения обновляет прогресс-бар.
+     */
+    async function setDailyGoal() {
+      if (!currentUser) return;
+      const hours = parseFloat(document.getElementById('goal-input').value);
+      if (!hours || hours <= 0 || hours > 24) {
+        showToast('Введите корректное количество часов (0.5 – 24)');
+        return;
+      }
+
+      const goalSecs = Math.round(hours * 3600);
+      const today = getTodayDate();
+
+      const { error } = await _supabase.from('profiles').update({
+        daily_goal_seconds: goalSecs,
+        daily_goal_date: today
+      }).eq('id', currentUser.id);
+
+      if (error) { console.error(error); showToast('Ошибка сохранения цели'); return; }
+
+      dailyGoalSeconds = goalSecs;
+      dailyGoalDate = today;
+      document.getElementById('goal-input').value = '';
+      showToast(`🎯 Цель поставлена: ${hours} ч`);
+      updateGoalProgress();
+    }
+
+    /**
+     * updateGoalProgress() — обновляет прогресс-бар цели дня.
+     * Берёт суммарное время учёбы за сегодня из profiles (today_study_seconds),
+     * сравнивает с dailyGoalSeconds и рисует заполнение бара.
+     * Если цель выполнена — показывает поздравление и разблокирует ачивку.
+     */
+    async function updateGoalProgress() {
+      const bar     = document.getElementById('goal-progress-bar');
+      const label   = document.getElementById('goal-progress-text');
+      const percent = document.getElementById('goal-percent-text');
+      const status  = document.getElementById('goal-status-text');
+
+      const today = getTodayDate();
+
+      // Цель не задана или устарела
+      if (!dailyGoalSeconds || dailyGoalDate !== today) {
+        label.innerText   = 'Цель не задана';
+        percent.innerText = '';
+        status.innerText  = '';
+        bar.style.width   = '0%';
+        bar.classList.remove('done');
+        return;
+      }
+
+      // Получаем сегодняшнее время учёбы из БД
+      const { data: profile } = await _supabase
+        .from('profiles')
+        .select('today_study_seconds')
+        .eq('id', currentUser.id)
+        .single();
+
+      let todaySecs = profile?.today_study_seconds || 0;
+
+      // Если сейчас учится — добавляем текущую сессию
+      if (myStatus === 'Учусь' && sessionStartedAt) {
+        todaySecs += Math.floor((Date.now() - new Date(sessionStartedAt).getTime()) / 1000);
+      }
+
+      const pct     = Math.min(100, Math.round((todaySecs / dailyGoalSeconds) * 100));
+      const doneH   = Math.floor(todaySecs / 3600);
+      const doneM   = Math.floor((todaySecs % 3600) / 60);
+      const goalH   = Math.floor(dailyGoalSeconds / 3600);
+      const goalM   = Math.floor((dailyGoalSeconds % 3600) / 60);
+
+      label.innerText   = `${doneH}ч ${doneM}м из ${goalH}ч ${goalM}м`;
+      percent.innerText = `${pct}%`;
+      bar.style.width   = `${pct}%`;
+
+      if (pct >= 100) {
+        bar.classList.add('done');
+        status.innerText = '🎉 Цель выполнена! Отличная работа!';
+        checkAndUnlock('goal_setter');
+      } else {
+        bar.classList.remove('done');
+        const remSecs = dailyGoalSeconds - todaySecs;
+        const remH    = Math.floor(remSecs / 3600);
+        const remM    = Math.floor((remSecs % 3600) / 60);
+        status.innerText = `Осталось: ${remH}ч ${remM}м`;
+      }
+    }
+
+    /** Обновлять цель каждые 30 сек пока учится */
+    function startGoalTimer() {
+      if (goalTimerInterval) clearInterval(goalTimerInterval);
+      goalTimerInterval = setInterval(updateGoalProgress, 30000);
+    }
+    function stopGoalTimer() {
+      if (goalTimerInterval) clearInterval(goalTimerInterval);
+    }
+
+    /** Сохранить сегодняшнее время учёбы в today_study_seconds */
+    async function saveTodayStudyTime() {
+      if (!currentUser || !sessionStartedAt) return;
+      const secs = Math.floor((Date.now() - new Date(sessionStartedAt).getTime()) / 1000);
+      if (secs < 10) return;
+
+      const today = getTodayDate();
+      const { data: profile } = await _supabase
+        .from('profiles')
+        .select('today_study_seconds, today_study_date')
+        .eq('id', currentUser.id)
+        .single();
+
+      // Сбрасываем счётчик если новый день
+      const prevSecs = (profile?.today_study_date === today) ? (profile?.today_study_seconds || 0) : 0;
+      await _supabase.from('profiles').update({
+        today_study_seconds: prevSecs + secs,
+        today_study_date: today
+      }).eq('id', currentUser.id);
+    }
+
+    function getTodayDate() {
+      return new Date().toISOString().slice(0, 10);
+    }
+
+    // ==========================================
+    // 📝 ФУНКЦИЯ 2: ЗАМЕТКИ
+    // ==========================================
+
+    /**
+     * loadNotes() — загружает личные заметки пользователя из таблицы notes.
+     * Фильтрует только записи текущего пользователя за сегодня.
+     * Отображает список с чекбоксами и кнопками удаления.
+     */
+    async function loadNotes() {
+      if (!currentUser) return;
+      const today = getTodayDate();
+
+      const { data, error } = await _supabase
+        .from('notes')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .eq('note_date', today)
+        .order('created_at', { ascending: true });
+
+      if (error) { console.error(error); return; }
+      notes = data || [];
+      renderNotes();
+    }
+
+    /**
+     * addNote() — добавляет новую заметку/задачу в Supabase.
+     * Читает текст из поля ввода, вставляет запись с user_id,
+     * note_date = сегодня, is_done = false.
+     * После сохранения перерисовывает список.
+     */
+    async function addNote() {
+      if (!currentUser) return;
+      const input = document.getElementById('note-input');
+      const text  = input.value.trim();
+      if (!text) return;
+
+      const today = getTodayDate();
+      const { data, error } = await _supabase.from('notes').insert({
+        user_id:   currentUser.id,
+        text:      text,
+        is_done:   false,
+        note_date: today
+      }).select().single();
+
+      if (error) { console.error(error); showToast('Ошибка добавления заметки'); return; }
+
+      input.value = '';
+      notes.push(data);
+      renderNotes();
+    }
+
+    /**
+     * toggleNote(id) — переключает статус задачи (выполнена / не выполнена).
+     * Обновляет is_done в Supabase и локально в массиве notes.
+     * Если выполнено 5+ задач — разблокирует ачивку «Планировщик».
+     */
+    async function toggleNote(id) {
+      const note = notes.find(n => n.id === id);
+      if (!note) return;
+
+      const newDone = !note.is_done;
+      const { error } = await _supabase.from('notes')
+        .update({ is_done: newDone })
+        .eq('id', id);
+
+      if (error) { console.error(error); return; }
+      note.is_done = newDone;
+      renderNotes();
+
+      // Проверяем ачивку: 5 выполненных задач
+      const doneCount = notes.filter(n => n.is_done).length;
+      if (doneCount >= 5) checkAndUnlock('planner');
+    }
+
+    /**
+     * deleteNote(id) — удаляет заметку из Supabase и из локального массива.
+     */
+    async function deleteNote(id) {
+      const { error } = await _supabase.from('notes').delete().eq('id', id);
+      if (error) { console.error(error); return; }
+      notes = notes.filter(n => n.id !== id);
+      renderNotes();
+    }
+
+    /** Перерисовать список заметок */
+    function renderNotes() {
+      const container = document.getElementById('notes-list');
+      if (!container) return;
+
+      if (notes.length === 0) {
+        container.innerHTML = '<div class="notes-empty">Задач нет — добавь первую! 👆</div>';
+        return;
+      }
+
+      // Сначала невыполненные, потом выполненные
+      const sorted = [...notes].sort((a, b) => a.is_done - b.is_done);
+
+      container.innerHTML = sorted.map(n => `
+        <div class="note-item">
+          <input type="checkbox" class="note-check" ${n.is_done ? 'checked' : ''}
+            onchange="toggleNote(${n.id})" />
+          <span class="note-text ${n.is_done ? 'done-text' : ''}">${escapeHtml(n.text)}</span>
+          <button class="note-delete" onclick="deleteNote(${n.id})">✕</button>
+        </div>
+      `).join('');
+    }
+
+    // ==========================================
+    // ОСТАЛЬНОЙ КОД (без изменений)
+    // ==========================================
 
     function showToast(msg) {
       const t = document.getElementById('toast');
@@ -187,7 +487,6 @@
       timerInterval = setInterval(() => {
         const diff = Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000);
         timerEl.innerText = formatTime(diff);
-        // Проверяем марафонец (2 часа = 7200 сек)
         if (diff >= 7200) checkAndUnlock('marathoner');
       }, 1000);
     }
@@ -198,23 +497,21 @@
     }
 
     function switchTab(tab) {
-      document.getElementById('tab-monitor').style.display = tab === 'monitor' ? 'block' : 'none';
-      document.getElementById('tab-rating').style.display = tab === 'rating' ? 'block' : 'none';
-      document.getElementById('tab-achievements').style.display = tab === 'achievements' ? 'block' : 'none';
+      ['monitor','rating','achievements','notes'].forEach(t => {
+        document.getElementById(`tab-${t}`).style.display = t === tab ? 'block' : 'none';
+      });
       document.querySelectorAll('.tab-btn').forEach((btn, i) => {
-        btn.classList.toggle('active', ['monitor','rating','achievements'][i] === tab);
+        btn.classList.toggle('active', ['monitor','rating','achievements','notes'][i] === tab);
       });
       if (tab === 'rating') fetchRating();
       if (tab === 'achievements') renderAchievements();
+      if (tab === 'notes') loadNotes();
     }
 
-    // ===== ДОСТИЖЕНИЯ =====
     async function loadMyAchievements() {
       if (!currentUser) return;
       const { data } = await _supabase
-        .from('user_achievements')
-        .select('achievement_id')
-        .eq('user_id', currentUser.id);
+        .from('user_achievements').select('achievement_id').eq('user_id', currentUser.id);
       myAchievements = data ? data.map(d => d.achievement_id) : [];
       renderBadges();
       renderAchievements();
@@ -223,12 +520,9 @@
     async function checkAndUnlock(achievementId) {
       if (!currentUser) return;
       if (myAchievements.includes(achievementId)) return;
-
       const { error } = await _supabase.from('user_achievements').insert({
-        user_id: currentUser.id,
-        achievement_id: achievementId
+        user_id: currentUser.id, achievement_id: achievementId
       });
-
       if (!error) {
         myAchievements.push(achievementId);
         const a = ACHIEVEMENTS.find(x => x.id === achievementId);
@@ -262,15 +556,11 @@
       }).join('');
     }
 
-    // ===== РЕЙТИНГ =====
     async function fetchRating() {
       const { data, error } = await _supabase
-        .from('profiles')
-        .select('username, total_study_seconds, total_sessions')
-        .order('total_study_seconds', { ascending: false })
-        .limit(20);
+        .from('profiles').select('username, total_study_seconds, total_sessions')
+        .order('total_study_seconds', { ascending: false }).limit(20);
       if (error) return console.error(error);
-
       const list = document.getElementById('ratinglist');
       list.innerHTML = data.map((u, i) => {
         const rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
@@ -282,38 +572,36 @@
             <div class="rating-rank ${rankClass}">${medal}</div>
             <div class="rating-name">${u.username}</div>
             <div class="rating-time">${hours}ч ${mins}м<br><span style="color:#bbb;font-size:10px;">${u.total_sessions || 0} сессий</span></div>
-          </div>
-        `;
+          </div>`;
       }).join('');
     }
 
-    // ===== ОБНОВИТЬ СУММАРНОЕ ВРЕМЯ (при завершении учёбы) =====
     async function saveStudyTime() {
       if (!currentUser || !sessionStartedAt) return;
       const secs = Math.floor((Date.now() - new Date(sessionStartedAt).getTime()) / 1000);
-      if (secs < 10) return; // игнорировать случайные клики
+      if (secs < 10) return;
 
       const { data: profile } = await _supabase
         .from('profiles').select('total_study_seconds, total_sessions').eq('id', currentUser.id).single();
-
-      const newTotal = (profile?.total_study_seconds || 0) + secs;
+      const newTotal    = (profile?.total_study_seconds || 0) + secs;
       const newSessions = (profile?.total_sessions || 0) + 1;
 
       await _supabase.from('profiles').update({
-        total_study_seconds: newTotal,
-        total_sessions: newSessions
+        total_study_seconds: newTotal, total_sessions: newSessions
       }).eq('id', currentUser.id);
 
-      // Проверяем достижения по суммарному времени
-      if (newTotal >= 36000) checkAndUnlock('dedicated');   // 10 часов
-      if (newTotal >= 72000) checkAndUnlock('legend');      // 20 часов
+      // Сохраняем сегодняшнее время для цели дня
+      await saveTodayStudyTime();
+
+      if (newTotal >= 36000) checkAndUnlock('dedicated');
+      if (newTotal >= 72000) checkAndUnlock('legend');
       if (newSessions >= 1)  checkAndUnlock('first_step');
       if (newSessions >= 5)  checkAndUnlock('consistent');
 
       sessionStartedAt = null;
+      updateGoalProgress();
     }
 
-    // ===== АВТОРИЗАЦИЯ =====
     async function onLogin(user) {
       currentUser = user;
       document.getElementById('login-section').style.display = 'none';
@@ -327,17 +615,29 @@
           id: user.id, username: username, status: 'Дома',
           color: '#9E9E9E', last_seen: new Date().toISOString(),
           status_started_at: new Date().toISOString(),
-          total_study_seconds: 0, total_sessions: 0, total_messages: 0
+          total_study_seconds: 0, total_sessions: 0, total_messages: 0,
+          today_study_seconds: 0, today_study_date: getTodayDate(),
+          daily_goal_seconds: 0, daily_goal_date: ''
         });
       } else {
         myStatus = existing.status;
         myStatusStarted = existing.status_started_at;
+
+        // Загружаем цель дня
+        const today = getTodayDate();
+        if (existing.daily_goal_date === today && existing.daily_goal_seconds > 0) {
+          dailyGoalSeconds = existing.daily_goal_seconds;
+          dailyGoalDate    = existing.daily_goal_date;
+        }
+
         if (existing.status === 'Учусь') {
           startMyTimer(existing.status_started_at);
+          startGoalTimer();
         }
       }
 
       await loadMyAchievements();
+      await updateGoalProgress();
       await updateLastSeen();
       setInterval(updateLastSeen, 30000);
 
@@ -346,11 +646,8 @@
       intervalId = setInterval(fetchGroup, 5000);
 
       fetchMessages();
-      _supabase
-        .channel('messages')
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, () => {
-          fetchMessages();
-        })
+      _supabase.channel('messages')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, () => fetchMessages())
         .subscribe();
     }
 
@@ -363,6 +660,7 @@
       currentUser = null;
       if (intervalId) clearInterval(intervalId);
       stopMyTimer();
+      stopGoalTimer();
       document.getElementById('login-section').style.display = 'block';
       document.getElementById('main-section').style.display = 'none';
     }
@@ -370,7 +668,6 @@
     _supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) onLogin(session.user);
     });
-
     _supabase.auth.onAuthStateChange((event, session) => {
       if (session?.user) onLogin(session.user);
       else onLogout();
@@ -382,35 +679,34 @@
         options: { redirectTo: 'https://arv1xx.github.io/my-cloud-project/' }
       });
     }
-
     function signOut() { _supabase.auth.signOut(); }
 
-    // ===== СМЕНА СТАТУСА =====
     async function changeStatus(text, color) {
       if (!currentUser) return;
       const now = new Date().toISOString();
 
-      // Если уходим с "Учусь" — сохраняем время
       if (myStatus === 'Учусь') {
         await saveStudyTime();
+        stopGoalTimer();
         hadBreakBeforeStudy = true;
       }
 
       const { error } = await _supabase.from('profiles').update({
         status: text, color: color, status_started_at: now
       }).eq('id', currentUser.id);
-
       if (error) { alert("Ошибка!"); console.error(error); return; }
 
-      // Достижения при смене статуса
       if (text === 'Учусь') {
         const hour = new Date().getHours();
-        if (hour < 8) checkAndUnlock('early_bird');
+        if (hour < 8)  checkAndUnlock('early_bird');
         if (hour >= 23) checkAndUnlock('night_owl');
         if (hadBreakBeforeStudy) checkAndUnlock('comeback');
         startMyTimer(now);
+        startGoalTimer();
+        updateGoalProgress();
       } else {
         stopMyTimer();
+        stopGoalTimer();
       }
 
       myStatus = text;
@@ -418,24 +714,20 @@
       fetchGroup();
     }
 
-    // ===== ГРУППА =====
     async function fetchGroup() {
       const { data, error } = await _supabase.from('profiles').select('*').order('username', { ascending: true });
       if (error) return console.error(error);
-
       const now = Date.now();
       const list = document.getElementById('grouplist');
       list.innerHTML = data.map(u => {
-        const lastSeen = u.last_seen ? new Date(u.last_seen).getTime() : 0;
-        const isOnline = (now - lastSeen) < 60000;
+        const lastSeen  = u.last_seen ? new Date(u.last_seen).getTime() : 0;
+        const isOnline  = (now - lastSeen) < 60000;
         const onlineColor = isOnline ? '#4CAF50' : '#ccc';
-
         let timerStr = '';
         if (u.status === 'Учусь' && u.status_started_at) {
           const secs = Math.floor((now - new Date(u.status_started_at).getTime()) / 1000);
           timerStr = `⏱ ${formatTimeShort(secs)}`;
         }
-
         return `
           <li class="user-item">
             <div class="user-left">
@@ -447,21 +739,16 @@
               </div>
             </div>
             <div class="user-timer">${timerStr}</div>
-          </li>
-        `;
+          </li>`;
       }).join('');
     }
 
-    // ===== ЧАТ =====
     async function fetchMessages() {
       const { data, error } = await _supabase
-        .from('messages').select('*')
-        .order('created_at', { ascending: true }).limit(50);
+        .from('messages').select('*').order('created_at', { ascending: true }).limit(50);
       if (error) return console.error(error);
-
       const box = document.getElementById('chatbox');
       const wasAtBottom = box.scrollHeight - box.scrollTop <= box.clientHeight + 10;
-
       box.innerHTML = data.map(m => {
         const isMe = currentUser && m.user_id === currentUser.id;
         const time = new Date(m.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
@@ -470,10 +757,8 @@
             <span style="font-weight: bold; color: ${isMe ? '#4CAF50' : '#333'};">${m.username}</span>
             <span style="color: #bbb; font-size: 11px;"> ${time}</span>
             <span style="color: #444; display:block; margin-left: 4px;">${escapeHtml(m.text)}</span>
-          </div>
-        `;
+          </div>`;
       }).join('');
-
       if (wasAtBottom) box.scrollTop = box.scrollHeight;
     }
 
@@ -482,32 +767,25 @@
       const input = document.getElementById('chatinput');
       const text = input.value.trim();
       if (!text) return;
-
       input.value = '';
       const username = currentUser.user_metadata?.full_name || currentUser.email;
-
       const { error } = await _supabase.from('messages').insert({
         user_id: currentUser.id, username: username, text: text
       });
       if (error) { console.error(error); return; }
-
-      // Обновляем счётчик сообщений и проверяем достижения
       const { data: profile } = await _supabase
         .from('profiles').select('total_messages').eq('id', currentUser.id).single();
       const newCount = (profile?.total_messages || 0) + 1;
       await _supabase.from('profiles').update({ total_messages: newCount }).eq('id', currentUser.id);
       if (newCount >= 20) checkAndUnlock('activist');
       if (newCount >= 50) checkAndUnlock('communicator');
-
       fetchMessages();
     }
 
     function escapeHtml(str) {
       return str
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
   </script>
 </body>
